@@ -15,6 +15,7 @@
 "IntegratedOnly"		= "Integrated® Uniquement";
 "DiscreteOnly"			= "Discrete® Uniquement";
 "DynamicSwitching"		= "Changement Dynamique";
+"DynamicIgnore"			= "DynamicIgnore";
 "Dependencies"			= "Dépendances";
 "NoProcess"				=	"Aucune";
 "Quit"					= "Quitter";

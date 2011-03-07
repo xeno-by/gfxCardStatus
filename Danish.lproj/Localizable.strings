@@ -16,6 +16,7 @@
 "IntegratedOnly"		= "Kun Integrated®";
 "DiscreteOnly"			= "Kun Discrete®";
 "DynamicSwitching"		= "Skift Dynamisk";
+"DynamicIgnore"			= "DynamicIgnore";
 "Dependencies"			= "Dependencies";
 "NoProcess"				= "Ingen";
 "Quit"					= "Afslut";

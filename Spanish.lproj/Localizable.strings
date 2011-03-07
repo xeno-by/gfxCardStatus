@@ -15,6 +15,7 @@
 "IntegratedOnly"		= "Solo Integrated®";
 "DiscreteOnly"			= "Solo Discrete®";
 "DynamicSwitching"		= "Cambiar Dinámicamente";
+"DynamicIgnore"			= "DynamicIgnore";
 "Dependencies"			= "Dependencias";
 "NoProcess"				= "Ninguna";
 "Quit"					= "Cerrar";

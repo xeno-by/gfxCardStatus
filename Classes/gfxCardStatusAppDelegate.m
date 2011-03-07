@@ -35,6 +35,9 @@ switcherMode switcherGetMode() {
 #pragma mark -
 
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
+	ignoreArray = [[NSUserDefaults standardUserDefaults] objectForKey:@"ignoreArray"];
+	ignoreArray = [[NSMutableArray alloc] initWithArray:ignoreArray];
+	
     prefs = [PrefsController sharedInstance];
     
     // initialize driver and process listing
@@ -110,6 +113,7 @@ switcherMode switcherGetMode() {
     [integratedOnly setHidden:[prefs usingLegacy]];
     [discreteOnly setHidden:[prefs usingLegacy]];
     [dynamicSwitching setHidden:[prefs usingLegacy]];
+    [dynamicIgnore setHidden:[prefs usingLegacy]];
     if ([prefs usingLegacy]) {
 //        integratedString = @"NVIDIA® GeForce 9400M";
 //        discreteString = @"NVIDIA® GeForce 9600M GT";
@@ -219,7 +223,7 @@ switcherMode switcherGetMode() {
         switcherSetMode(modeToggleGPU);
         return;
     }
-    
+	
     // current cards
     if ([sender state] == NSOnState) return;
     
@@ -236,16 +240,103 @@ switcherMode switcherGetMode() {
         Log(@"Setting dynamic switching...");
         retval = switcherSetMode(modeDynamicSwitching);
     }
-    
+    if (sender == dynamicIgnore) {
+        Log(@"Setting dynamic ignore...");
+		[[[NSWorkspace sharedWorkspace] notificationCenter] addObserver:self selector:@selector(dynamicIgnoreMonitor:) name:NSWorkspaceWillLaunchApplicationNotification object:nil];
+		[[[NSWorkspace sharedWorkspace] notificationCenter] addObserver:self selector:@selector(dynamicIgnoreMonitor:) name:NSWorkspaceDidTerminateApplicationNotification object:nil];
+        [self dynamicIgnoreCheck];
+		retval = YES;
+    }
+	
     // only change status in case of success
     if (retval) {
         [integratedOnly setState:(sender == integratedOnly ? NSOnState : NSOffState)];
         [discreteOnly setState:(sender == discreteOnly ? NSOnState : NSOffState)];
         [dynamicSwitching setState:(sender == dynamicSwitching ? NSOnState : NSOffState)];
+        [dynamicIgnore setState:(sender == dynamicIgnore ? NSOnState : NSOffState)];
         
         // delayed double-check
         [self performSelector:@selector(checkCardState) withObject:nil afterDelay:5.0];
     }
+}
+
+- (void)dynamicIgnoreCheck {
+    BOOL integrated = switcherUseIntegrated();
+	Log(@"Dynamic Ignore Monitor");
+    NSMutableDictionary* procs = [[NSMutableDictionary alloc] init];
+    if (!procGet(procs)) Log(@"Can't obtain I/O Kit's root service");
+	
+	BOOL shouldUseDiscrete = NO;
+	
+	for (NSString* appName in [procs allValues]) {
+		appName = [[appName componentsSeparatedByString:@","] objectAtIndex:0];
+		if (![ignoreArray containsObject:appName]) {
+			shouldUseDiscrete = YES;	
+		}
+    }
+	
+	if (shouldUseDiscrete && integrated) {
+		switcherSetMode(modeForceNvidia);
+	} else if (!shouldUseDiscrete && !integrated) {
+		switcherSetMode(modeForceIntel);
+	}
+    
+    [procs release];
+}
+
+void runSystemCommand(NSString *cmd)
+{
+    [NSTask launchedTaskWithLaunchPath:@"/bin/sh" arguments:[NSArray arrayWithObjects:@"-c", cmd, nil]];
+}
+
+- (void)dynamicIgnoreMonitor:(id)sender {
+	Log(@"Dynamic Ignore Monitor");
+	
+	NSString *appName = [[sender userInfo] objectForKey:@"NSApplicationName"];
+	
+	if ([[sender name] isEqualToString:@"NSWorkspaceDidTerminateApplicationNotification"]) {
+		if (![ignoreArray containsObject:appName]) {
+			switcherSetMode(modeForceIntel);
+		} else {
+			switcherSetMode(modeForceNvidia);
+		}
+	} else {
+		NSString *pid = [[sender userInfo] objectForKey:@"NSApplicationProcessIdentifier"];		
+		NSString *cmd = [NSString stringWithFormat:@"kill -s STOP %@; sleep 2; kill -s CONT %@",pid,pid];
+		runSystemCommand(cmd);
+		
+		if (![ignoreArray containsObject:appName]) {
+			switcherSetMode(modeForceNvidia);
+		} else {
+			switcherSetMode(modeForceIntel);
+		}
+	}
+	
+}
+
+- (void)unfreeze:(id)pid {
+	NSString *cmd = [NSString stringWithFormat:@"kill -s CONT %@",pid];
+	runSystemCommand(cmd);
+
+}
+
+- (void)ignoreAction:(id)sender {
+	NSString *appName = [[[sender title] componentsSeparatedByString:@","] objectAtIndex:0];
+	for (int i = 0; i < [ignoreArray count]; i++) {
+		NSString *tmpAppName = [ignoreArray objectAtIndex:i];
+		if ([appName isEqualToString:tmpAppName]) {
+			[sender setState:NSOffState];
+			[ignoreArray removeObject:tmpAppName];
+			appName = nil;
+			break;
+		} 
+	}
+	if (appName) {
+		[ignoreArray addObject:appName];
+		[sender setState:NSOnState];
+	}
+	[[NSUserDefaults standardUserDefaults] setObject:ignoreArray forKey:@"ignoreArray"];
+	[[NSUserDefaults standardUserDefaults] synchronize];
 }
 
 - (IBAction)openApplicationURL:(id)sender {
@@ -298,7 +389,7 @@ switcherMode switcherGetMode() {
     }
     
     // if we're on Integrated (or using a 9400M/9600M GT model), no need to display/update the list
-    BOOL procList = !usingIntegrated && ![prefs usingLegacy];
+    BOOL procList = (!usingIntegrated && ![prefs usingLegacy]) || [dynamicIgnore state];
     [processList setHidden:!procList];
     [processesSeparator setHidden:!procList];
     [dependentProcesses setHidden:!procList];
@@ -327,13 +418,35 @@ switcherMode switcherGetMode() {
     [processList setHidden:([procs count] > 0 || usingExternalDisplay)];
     if ([procs count]==0) Log(@"We're using the Discrete card, but no process requires it. An external monitor may be connected, or we may be in Discrete Only mode.");
     
+	BOOL dynamicIgnoreOn = [dynamicIgnore state];
+	SEL menuAction = NULL;
+	if (dynamicIgnoreOn) {
+		menuAction = @selector(ignoreAction:);
+	}
+	NSMutableArray *tmpIgnoreArray = [NSMutableArray arrayWithArray:ignoreArray];
+	
     for (NSString* appName in [procs allValues]) {
-        NSMenuItem *appItem = [[NSMenuItem alloc] initWithTitle:appName action:nil keyEquivalent:@""];
+        NSMenuItem *appItem = [[NSMenuItem alloc] initWithTitle:appName action:menuAction keyEquivalent:@""];
+		appName = [[appName componentsSeparatedByString:@","] objectAtIndex:0];
+		if ([ignoreArray containsObject:appName]) {
+			[tmpIgnoreArray removeObject:appName];
+			[appItem setState:NSOnState];
+		}
+
         [appItem setIndentationLevel:1];
         [statusMenu insertItem:appItem atIndex:([statusMenu indexOfItem:processList] + 1)];
         [appItem release];
     }
-    
+	
+	for (NSString *tmpAppName in tmpIgnoreArray) {
+		NSMenuItem *appItem = [[NSMenuItem alloc] initWithTitle:tmpAppName action:nil keyEquivalent:@""];
+        [appItem setIndentationLevel:1];
+		[appItem setState:NSOnState];
+		[appItem setAction:@selector(ignoreAction:)];
+        [statusMenu insertItem:appItem atIndex:([statusMenu indexOfItem:processList] + 1)];
+        [appItem release];
+	}
+	
     [procs release];
 }
 
@@ -366,7 +479,7 @@ switcherMode switcherGetMode() {
     NSMenuItem *activeCard = [self senderForMode:currentMode]; // corresponding menu item
     
     // check if its consistent with menu state
-    if ([activeCard state] != NSOnState && ![prefs usingLegacy]) {
+    if ([activeCard state] != NSOnState && ![prefs usingLegacy] && ![dynamicIgnore state]) {
         Log(@"Inconsistent menu state and active card, forcing retry");
         
         // set menu item to reflect actual status
