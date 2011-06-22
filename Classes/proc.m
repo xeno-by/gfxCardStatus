@@ -38,7 +38,7 @@ static void procUpdate() {
 }
 
 static void procTask(const void * value, void * param) {
-    NSMutableDictionary* dict = (NSMutableDictionary*)param;
+    NSMutableDictionary *dict = (NSMutableDictionary *)objc_unretainedObject(param);
     NSNumber *key = NULL;
     NSString *val = NULL;
     NSString *procName = NULL;
@@ -88,13 +88,12 @@ err:
     val = [[NSString alloc] initWithUTF8String:k->kp_proc.p_comm];
 add:
     [dict setObject:val forKey:key];
-    [key release]; [procName release];
 }
 
 static void procScan(io_registry_entry_t service, NSMutableDictionary* dict) {
-    io_registry_entry_t child     = 0;
-    io_iterator_t        children = 0;
-    CFMutableDictionaryRef props = NULL;
+    io_registry_entry_t    child    = 0;
+    io_iterator_t          children = 0;
+    CFMutableDictionaryRef props    = NULL;
     
     if (IOObjectConformsTo(service, "AppleGraphicsControl")) {
         kern_return_t status = IORegistryEntryCreateCFProperties(service, &props, kCFAllocatorDefault, kNilOptions);
@@ -102,7 +101,7 @@ static void procScan(io_registry_entry_t service, NSMutableDictionary* dict) {
             CFTypeRef array = CFDictionaryGetValue(props, procTaskKey);
             CFRange range = { 0, CFArrayGetCount(array) };
             [dict removeAllObjects];
-            CFArrayApplyFunction(array, range, procTask, dict);
+            CFArrayApplyFunction(array, range, procTask, (void*)objc_unretainedPointer(dict));
             CFRelease(props);
         }
     }
@@ -125,7 +124,7 @@ void procFree() {
     procInfo = NULL;
 }
 
-BOOL procGet(NSMutableDictionary* dict) {
+BOOL procGet(NSMutableDictionary *dict) {
     io_registry_entry_t service = 0;
     if (dict == NULL) return NO;
     

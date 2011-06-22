@@ -34,7 +34,6 @@
     for (NSButton *loc in localized) {
         [loc setTitle:Str([loc title])];
     }
-    [localized release];
     
     // set up growl notifications regardless of whether or not we're supposed to growl
     [GrowlApplicationBridge setGrowlDelegate:self];
@@ -44,7 +43,7 @@
     
     // status item
     [statusMenu setDelegate:self];
-    statusItem = [[[NSStatusBar systemStatusBar] statusItemWithLength:NSVariableStatusItemLength] retain];
+    statusItem = [[NSStatusBar systemStatusBar] statusItemWithLength:NSVariableStatusItemLength];
     [statusItem setMenu:statusMenu];
     [statusItem setHighlightMode:YES];
     
@@ -61,8 +60,6 @@
         [versionInfo setAccessoryView:accessory];
         [versionInfo addButtonWithTitle:@"Don't show this again!"];
         [versionInfo runModal];
-        [versionInfo release];
-        [accessory release];
         
         [prefs setBool:YES forKey:@"hasSeenVersionTwoMessage"];
     }
@@ -283,12 +280,12 @@
                                                 size:fontSize];
     
     // create NSAttributedString with font
-    NSDictionary *attributes = [[[NSDictionary alloc] initWithObjectsAndKeys:
+    NSDictionary *attributes = [[NSDictionary alloc] initWithObjectsAndKeys:
                                 boldItalic, NSFontAttributeName, 
-                                [NSNumber numberWithDouble:2.0], NSBaselineOffsetAttributeName, nil] autorelease];
-    NSAttributedString *title = [[[NSAttributedString alloc] 
+                                [NSNumber numberWithDouble:2.0], NSBaselineOffsetAttributeName, nil];
+    NSAttributedString *title = [[NSAttributedString alloc] 
                                  initWithString:letter
-                                    attributes: attributes] autorelease];
+                                    attributes: attributes];
     
     // set menu bar text "icon"
     [statusItem setAttributedTitle:title];
@@ -331,7 +328,7 @@
     if (CGGetOnlineDisplayList(8, displays, &displayCount) == noErr) {
         for (int i = 0; i < displayCount; i++) {
             if ( ! CGDisplayIsBuiltin(displays[i])) {
-                NSMenuItem *externalDisplay = [[[NSMenuItem alloc] initWithTitle:@"External Display" action:nil keyEquivalent:@""] autorelease];
+                NSMenuItem *externalDisplay = [[NSMenuItem alloc] initWithTitle:@"External Display" action:nil keyEquivalent:@""];
                 [externalDisplay setIndentationLevel:1];
                 [statusMenu insertItem:externalDisplay atIndex:([statusMenu indexOfItem:processList] + 1)];
                 usingExternalDisplay = YES;
@@ -349,10 +346,8 @@
         NSMenuItem *appItem = [[NSMenuItem alloc] initWithTitle:appName action:nil keyEquivalent:@""];
         [appItem setIndentationLevel:1];
         [statusMenu insertItem:appItem atIndex:([statusMenu indexOfItem:processList] + 1)];
-        [appItem release];
     }
     
-    [procs release];
 }
 
 #pragma mark Helpers
@@ -438,8 +433,6 @@
     procFree(); // Free processes listing buffers
     [MuxMagic switcherClose]; // Close driver
     
-    [statusItem release];
-    [super dealloc];
 }
 
 @end

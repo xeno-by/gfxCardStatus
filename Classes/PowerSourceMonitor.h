@@ -20,10 +20,10 @@ typedef enum {
 
 
 @interface PowerSourceMonitor : NSObject {
-    id<PowerSourceMonitorDelegate> delegate;
+    id<PowerSourceMonitorDelegate> __weak delegate;
 }
 
-@property (nonatomic, assign) id<PowerSourceMonitorDelegate> delegate;
+@property (nonatomic, weak) id<PowerSourceMonitorDelegate> delegate;
 @property (nonatomic, readonly, getter=currentPowerSource) PowerSource currentPowerSource;
 
 - (PowerSourceMonitor *)initWithDelegate:(id<PowerSourceMonitorDelegate>)delegate;

@@ -29,7 +29,7 @@ void DisplayReconfigurationCallback(CGDirectDisplayID display, CGDisplayChangeSu
         
         queue = dispatch_queue_create("com.codykrieger.gfxCardStatus.notificationQueue", NULL);
         
-        CGDisplayRegisterReconfigurationCallback(DisplayReconfigurationCallback, self);
+        CGDisplayRegisterReconfigurationCallback(DisplayReconfigurationCallback, NULL);
     }
     
     return self;
@@ -51,7 +51,7 @@ void DisplayReconfigurationCallback(CGDirectDisplayID display, CGDisplayChangeSu
         [NSThread sleepForTimeInterval:0.1];
         
         if (flags & kCGDisplaySetModeFlag) {
-            SessionMagic *state = (SessionMagic *)userInfo;
+            SessionMagic *state = [SessionMagic sharedInstance];
             
             // display has been reconfigured
             DLog(@"\n\nhas the gpu changed? let's find out:\n\n\n");
@@ -96,22 +96,6 @@ void DisplayReconfigurationCallback(CGDirectDisplayID display, CGDisplayChangeSu
 }
 
 - (id)copyWithZone:(NSZone *)zone {
-    return self;
-}
-
-- (id)retain {
-    return self;
-}
-
-- (NSUInteger)retainCount {
-    return NSUIntegerMax;  //denotes an object that cannot be released
-}
-
-- (oneway void)release {
-    //do nothing
-}
-
-- (id)autorelease {
     return self;
 }
 

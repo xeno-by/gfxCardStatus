@@ -56,13 +56,11 @@ static PrefsController *sharedInstance = nil;
     for (NSButton *loc in localizedButtons) {
         [loc setTitle:Str([loc title])];
     }
-    [localizedButtons release];
     
     NSArray *localizedLabels = [[NSArray alloc] initWithObjects:onBatteryTextField, pluggedInTextField, nil];
     for (NSTextField *field in localizedLabels) {
         [field setStringValue:Str([field stringValue])];
     }
-    [localizedLabels release];
     
     if ([[SessionMagic sharedInstance] usingLegacy]) {
         [prefSegOnBattery setSegmentCount:2];
@@ -212,12 +210,12 @@ static PrefsController *sharedInstance = nil;
     LSSharedFileListRef loginItems = LSSharedFileListCreate(NULL, kLSSharedFileListSessionLoginItems, NULL);
     if (loginItems) {
         UInt32 seedValue;
-        NSArray *loginItemsArray = (NSArray *)LSSharedFileListCopySnapshot(loginItems, &seedValue);
+        NSArray *loginItemsArray = (NSArray *)objc_retainedObject(LSSharedFileListCopySnapshot(loginItems, &seedValue));
         for (id item in loginItemsArray) {
-            LSSharedFileListItemRef itemRef = (LSSharedFileListItemRef)item;
+            LSSharedFileListItemRef itemRef = (LSSharedFileListItemRef)objc_unretainedPointer(item);
             CFURLRef URL = NULL;
             if (LSSharedFileListItemResolve(itemRef, 0, &URL, NULL) == noErr) {
-                if ([[(NSURL *)URL path] hasSuffix:@"gfxCardStatus.app"]) {
+                if ([[(NSURL *)objc_unretainedObject(URL) path] hasSuffix:@"gfxCardStatus.app"]) {
                     exists = YES;
                     CFRelease(URL);
                     break;
@@ -225,7 +223,6 @@ static PrefsController *sharedInstance = nil;
             }
         }
         
-        [loginItemsArray release];
         CFRelease(loginItems);
     }
     return exists;
@@ -238,17 +235,17 @@ static PrefsController *sharedInstance = nil;
         BOOL exists = NO;
         
         UInt32 seedValue;
-        NSArray *loginItemsArray = (NSArray *)LSSharedFileListCopySnapshot(loginItems, &seedValue);
+        NSArray *loginItemsArray = (NSArray *)objc_retainedObject(LSSharedFileListCopySnapshot(loginItems, &seedValue));
         LSSharedFileListItemRef removeItem;
         for (id item in loginItemsArray) {
-            LSSharedFileListItemRef itemRef = (LSSharedFileListItemRef)item;
+            LSSharedFileListItemRef itemRef = (LSSharedFileListItemRef)objc_unretainedPointer(item);
             CFURLRef URL = NULL;
             if (LSSharedFileListItemResolve(itemRef, 0, &URL, NULL) == noErr) {
-                if ([[(NSURL *)URL path] hasSuffix:@"gfxCardStatus.app"]) {
+                if ([[(NSURL *)objc_unretainedObject(URL) path] hasSuffix:@"gfxCardStatus.app"]) {
                     exists = YES;
                     DLog(@"Already exists in startup items");
                     CFRelease(URL);
-                    removeItem = (LSSharedFileListItemRef)item;
+                    removeItem = (LSSharedFileListItemRef)objc_unretainedPointer(item);
                     break;
                 }
             }
@@ -256,14 +253,13 @@ static PrefsController *sharedInstance = nil;
         
         if (value && !exists) {
             DLog(@"Adding to startup items.");
-            LSSharedFileListItemRef item = LSSharedFileListInsertItemURL(loginItems, kLSSharedFileListItemBeforeFirst, NULL, NULL, (CFURLRef)thePath, NULL, NULL);
+            LSSharedFileListItemRef item = LSSharedFileListInsertItemURL(loginItems, kLSSharedFileListItemBeforeFirst, NULL, NULL, (CFURLRef)objc_unretainedPointer(thePath), NULL, NULL);
             if (item) CFRelease(item);
         } else if (!value && exists) {
             DLog(@"Removing from startup items.");        
             LSSharedFileListItemRemove(loginItems, removeItem);
         }
         
-        [loginItemsArray release];
         CFRelease(loginItems);
     }
 }
@@ -290,22 +286,6 @@ static PrefsController *sharedInstance = nil;
 }
 
 - (id)copyWithZone:(NSZone *)zone {
-    return self;
-}
-
-- (id)retain {
-    return self;
-}
-
-- (NSUInteger)retainCount {
-    return NSUIntegerMax; // denotes an object that cannot be released
-}
-
-- (oneway void)release {
-    // do nothing
-}
-
-- (id)autorelease {
     return self;
 }
 

@@ -20,7 +20,7 @@ typedef enum {
 @end
 
 @interface SessionMagic : NSObject {
-    id <SessionMagicDelegate> delegate;
+    id <SessionMagicDelegate> __weak delegate;
     
     // preferences-related
     BOOL _canGrowl;
@@ -33,7 +33,7 @@ typedef enum {
     NSString *_discreteString;
 }
 
-@property (nonatomic, assign) id <SessionMagicDelegate> delegate;
+@property (nonatomic, weak) id <SessionMagicDelegate> delegate;
 @property (nonatomic) BOOL usingIntegrated;
 @property (nonatomic) BOOL usingLegacy;
 @property (nonatomic, retain) NSString *integratedString;

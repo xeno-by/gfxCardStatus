@@ -39,12 +39,10 @@
     [task launch];
     NSData *data = [[pipe fileHandleForReading] readDataToEndOfFile];
     [task waitUntilExit];
-    [task release];
     
     // split up the output into lines
     NSString *output = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
     NSArray *lines = [output componentsSeparatedByString:@"\n"];
-    [output release];
     
     // parse the output into a dictionary of dictionaries based on section names,
     // which are determined by whitespace indentation level
@@ -52,7 +50,7 @@
     NSMutableArray *currentKeys = [[NSMutableArray alloc] init];
     int currentLevel = 0;
     
-    for (NSString *obj in lines) {
+    for (NSString __strong *obj in lines) {
         int lengthBeforeTrim = [obj length];
         int whitespaceLength = 0;
         obj = [obj stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
@@ -70,7 +68,7 @@
             obj = [obj stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@":"]];
             
             if ([currentKeys count] == 0) {
-                [profilerInfo setObject:[[[NSMutableDictionary alloc] init] autorelease] forKey: obj];
+                [profilerInfo setObject:[[NSMutableDictionary alloc] init] forKey: obj];
                 [currentKeys addObject:obj];
             } else {
                 NSMutableDictionary *tempDict = profilerInfo;
@@ -78,7 +76,7 @@
                     tempDict = [tempDict objectForKey:[currentKeys objectAtIndex:i]];
                 }
                 
-                [tempDict setObject:[[[NSMutableDictionary alloc] init] autorelease] forKey:obj];
+                [tempDict setObject:[[NSMutableDictionary alloc] init] forKey:obj];
                 [currentKeys addObject:obj];
             }
             
@@ -155,9 +153,6 @@
         
         [profile setObject:[NSNumber numberWithBool:usingIntegrated] forKey:@"usingIntegrated"];
     }
-    
-    [profilerInfo release];
-    [currentKeys release];
     
     return profile;
 }
