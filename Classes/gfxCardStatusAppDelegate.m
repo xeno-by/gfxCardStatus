@@ -100,6 +100,7 @@
     }
     
     [state setCanGrowl:NO];
+    
     [self updateMenu];
     
     // only resture last mode if preference is set, and we're NOT using power source-based switching
@@ -121,6 +122,8 @@
         [self setMode:modeItem];
     }
     
+    [self updateModeState];
+    
     [state setCanGrowl:YES];
     
     powerSourceMonitor = [PowerSourceMonitor monitorWithDelegate:self];
@@ -137,6 +140,16 @@
 - (void)gpuChangedTo:(GPUType)gpu {
     [self updateMenu];
     
+    // fix the weird "switching back" problem after apps close
+    // ...except that this manages to totally lock everything up
+    if (gpu == kGPUTypeDiscrete && [state mode] == kModeForceIntegrated) {
+        if (processes == nil || [processes count] == 0) {
+            DLog(@"Whoa, nelly! Discrete GPU just came on, but we're supposed to be on Integrated Only...");
+//            [self performSelector:@selector(setMode:) withObject:integratedOnly afterDelay:5.0];
+//            return;
+        }
+    }
+    
     if ([state canGrowl]) {
         NSString *cardString = [state usingIntegrated] ? [state integratedString] : [state discreteString];
         NSString *msg  = [NSString stringWithFormat:@"%@ %@", cardString, Str(@"GrowlSwitch")];
@@ -145,7 +158,31 @@
     }
     
     // verify state
-    [self performSelector:@selector(checkCardState) withObject:nil afterDelay:2.0];
+//    [self performSelector:@selector(checkCardState) withObject:nil afterDelay:1.0];
+    
+    SwitcherMode currentMode = [SystemInfo switcherGetMode]; // actual current mode
+    NSMenuItem *activeCard = [self senderForMode:currentMode]; // corresponding menu item
+    
+    DLog(@"Active menu item: %@, current mode: %i", activeCard, currentMode);
+    
+    // check if its consistent with menu state
+    if ([activeCard state] != NSOnState && ![state usingLegacy]) {
+        DLog(@"Inconsistent menu state and active card");
+        
+        // set menu item to reflect actual status
+        [integratedOnly setState:NSOffState];
+        [discreteOnly setState:NSOffState];
+        [dynamicSwitching setState:NSOffState];
+        [activeCard setState:NSOnState];
+    }
+    
+    if ([integratedOnly state] > 0) {
+        [prefs setLastMode:0];
+    } else if ([discreteOnly state] > 0) {
+        [prefs setLastMode:1];
+    } else if ([dynamicSwitching state] > 0) {
+        [prefs setLastMode:2];
+    }
 }
 
 - (void)handleWake:(NSNotification *)notification {
@@ -194,25 +231,33 @@
     // legacy cards
     if (sender == switchGPUs) {
         DLog(@"Switching GPUs...");
-        [MuxMagic switcherSetMode:modeToggleGPU];
+        [MuxMagic switcherSetMode:kModeToggleGPU];
         return;
     }
     
     // current cards
     if ([sender state] == NSOnState) return;
     
+    // update mode state based on sender
+    if (sender == integratedOnly)
+        [state setMode:kModeForceIntegrated];
+    else if (sender == discreteOnly)
+        [state setMode:kModeForceDiscrete];
+    else
+        [state setMode:kModeDynamicSwitching];
+    
     BOOL retval = NO;
     if (sender == integratedOnly) {
         DLog(@"Setting Integrated only...");
-        retval = [MuxMagic switcherSetMode:modeForceIntegrated];
+        retval = [MuxMagic switcherSetMode:kModeForceIntegrated];
     }
     if (sender == discreteOnly) { 
         DLog(@"Setting NVIDIA only...");
-        retval = [MuxMagic switcherSetMode:modeForceDiscrete];
+        retval = [MuxMagic switcherSetMode:kModeForceDiscrete];
     }
     if (sender == dynamicSwitching) {
         DLog(@"Setting dynamic switching...");
-        retval = [MuxMagic switcherSetMode:modeDynamicSwitching];
+        retval = [MuxMagic switcherSetMode:kModeDynamicSwitching];
     }
     
     // only change status in case of success
@@ -222,8 +267,10 @@
         [dynamicSwitching setState:(sender == dynamicSwitching ? NSOnState : NSOffState)];
         
         // delayed double-check
-        [self performSelector:@selector(checkCardState) withObject:nil afterDelay:5.0];
+//        [self performSelector:@selector(checkCardState) withObject:nil afterDelay:5.0];
     }
+    
+    [self updateModeState];
 }
 
 - (IBAction)openApplicationURL:(id)sender {
@@ -232,6 +279,17 @@
 
 - (IBAction)quit:(id)sender {
     [[NSApplication sharedApplication] terminate:self];
+}
+
+- (void)updateModeState {
+    if (![state usingLegacy]) {
+        if ([integratedOnly state] == NSOnState)
+            [state setMode:kModeForceIntegrated];
+        else if ([discreteOnly state] == NSOnState)
+            [state setMode:kModeForceDiscrete];
+        else
+            [state setMode:kModeDynamicSwitching];
+    }
 }
 
 - (void)updateMenu {
@@ -288,6 +346,10 @@
     
     [currentCard setTitle:[Str(@"Card") stringByReplacingOccurrencesOfString:@"%%" withString:cardString]];
     
+//    SwitcherMode mode = [SystemInfo switcherGetMode];
+//    NSMenuItem *activeCard = [self senderForMode:currentMode];
+//    
+    
     if ([state usingIntegrated]) DLog(@"%@ in use. Sweet deal! More battery life.", [state integratedString]);
     else DLog(@"%@ in use. Bummer! Less battery life for you.", [state discreteString]);
     
@@ -308,7 +370,7 @@
     
     DLog(@"Updating process list...");
     
-    NSArray *processes = [SystemInfo getTaskList];
+    processes = [SystemInfo getTaskList];
     
     [processList setHidden:([processes count] > 0)];
     
@@ -332,13 +394,13 @@
     // convert switcher mode to a menu item (consumed by setMode:)
     
     switch (mode) {
-        case modeForceIntegrated:
+        case kModeForceIntegrated:
             return integratedOnly;
-        case modeForceDiscrete:
+        case kModeForceDiscrete:
             return discreteOnly;
-        case modeDynamicSwitching:
+        case kModeDynamicSwitching:
             return dynamicSwitching;
-        case modeToggleGPU:
+        case kModeToggleGPU:
             // warnings suck. all your base are belong to us.
             break;
     }
@@ -346,36 +408,40 @@
     return dynamicSwitching;
 }
 
-- (void)checkCardState {
-    // it seems right after waking from sleep, locking to single GPU will fail (even if the return value is correct)
-    // this is a temporary workaround to double-check the status
-    
-    SwitcherMode currentMode = [SystemInfo switcherGetMode]; // actual current mode
-    NSMenuItem *activeCard = [self senderForMode:currentMode]; // corresponding menu item
-    
-    // check if its consistent with menu state
-    if ([activeCard state] != NSOnState && ![state usingLegacy]) {
-        DLog(@"Inconsistent menu state and active card, forcing retry");
-        
-        // set menu item to reflect actual status
-        [integratedOnly setState:NSOffState];
-        [discreteOnly setState:NSOffState];
-        [dynamicSwitching setState:NSOffState];
-        [activeCard setState:NSOnState];
-    }
-    
-    if ([integratedOnly state] > 0) {
-        [prefs setLastMode:0];
-    } else if ([discreteOnly state] > 0) {
-        [prefs setLastMode:1];
-    } else if ([dynamicSwitching state] > 0) {
-        [prefs setLastMode:2];
-    }
-    
-    // this is being problematic
-    // lastPowerSource = -1; // set to uninitialized
-    [self powerSourceChanged:powerSourceMonitor.currentPowerSource];
-}
+//- (void)checkCardState {
+//    // it seems right after waking from sleep, locking to single GPU will fail (even if the return value is correct)
+//    // this is a temporary workaround to double-check the status
+//    
+//    DLog(@"In checkCardState...");
+//    
+//    SwitcherMode currentMode = [SystemInfo switcherGetMode]; // actual current mode
+//    NSMenuItem *activeCard = [self senderForMode:currentMode]; // corresponding menu item
+//    
+//    DLog(@"Active menu item: %@, current mode: %i", activeCard, currentMode);
+//    
+//    // check if its consistent with menu state
+//    if ([activeCard state] != NSOnState && ![state usingLegacy]) {
+//        DLog(@"Inconsistent menu state and active card");
+//        
+//        // set menu item to reflect actual status
+//        [integratedOnly setState:NSOffState];
+//        [discreteOnly setState:NSOffState];
+//        [dynamicSwitching setState:NSOffState];
+//        [activeCard setState:NSOnState];
+//    }
+//    
+//    if ([integratedOnly state] > 0) {
+//        [prefs setLastMode:0];
+//    } else if ([discreteOnly state] > 0) {
+//        [prefs setLastMode:1];
+//    } else if ([dynamicSwitching state] > 0) {
+//        [prefs setLastMode:2];
+//    }
+//    
+//    // this is being problematic
+//    // lastPowerSource = -1; // set to uninitialized
+//    [self powerSourceChanged:powerSourceMonitor.currentPowerSource];
+//}
 
 - (void)powerSourceChanged:(PowerSource)powerSource {
     if (powerSource == lastPowerSource) {

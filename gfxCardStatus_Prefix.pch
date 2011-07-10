@@ -2,10 +2,16 @@
 // Prefix header for all source files of the 'gfxCardStatus' target in the 'gfxCardStatus' project
 //
 
+typedef enum {
+    kModeForceIntegrated,
+    kModeForceDiscrete,
+    kModeDynamicSwitching,
+    kModeToggleGPU
+} SwitcherMode;
+
 #ifdef __OBJC__
     #import <Cocoa/Cocoa.h>
-    #import "gfxCardStatusAppDelegate.h"
-    
+
     #define Str(key) NSLocalizedString(key, key)
     
     #ifndef NDEBUG

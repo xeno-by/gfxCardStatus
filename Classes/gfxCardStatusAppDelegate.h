@@ -49,16 +49,20 @@
     
     // state for all!!!
     SessionMagic *state;
+    NSArray *processes;
     
     // power source monitor
     PowerSourceMonitor *powerSourceMonitor;
     PowerSource lastPowerSource;
 }
 
+- (void)updateModeState;
 - (void)updateMenu;
 - (void)updateProcessList;
 
 - (IBAction)setMode:(id)sender;
+
+- (NSMenuItem *)senderForMode:(SwitcherMode)mode;
 
 - (IBAction)openPreferences:(id)sender;
 - (IBAction)openAbout:(id)sender;

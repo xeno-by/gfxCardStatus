@@ -9,6 +9,7 @@
 #import <Foundation/Foundation.h>
 
 #import "MuxMagic.h"
+#import "PowerSourceMonitor.h"
 
 #define kTaskItemName  @"name"
 #define kTaskItemPID   @"pid"

@@ -21,7 +21,8 @@ void DisplayReconfigurationCallback(CGDirectDisplayID display, CGDisplayChangeSu
             usingIntegrated, 
             usingLegacy,
             integratedString, 
-            discreteString;
+            discreteString,
+            mode;
 
 - (id)init {
     self = [super init];
@@ -30,6 +31,11 @@ void DisplayReconfigurationCallback(CGDirectDisplayID display, CGDisplayChangeSu
         
         NSDictionary *profile = [SystemInfo getGraphicsProfile];
         usingLegacy = [(NSNumber *)[profile objectForKey:@"legacy"] boolValue];
+        
+        if (usingLegacy)
+            mode = kModeToggleGPU;
+        else
+            mode = kModeDynamicSwitching;
         
         queue = dispatch_queue_create("com.codykrieger.gfxCardStatus.notificationQueue", NULL);
         

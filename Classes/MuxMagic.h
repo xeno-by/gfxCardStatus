@@ -8,13 +8,6 @@
 
 #import <Foundation/Foundation.h>
 
-typedef enum {
-    modeForceIntegrated,
-    modeForceDiscrete,
-    modeDynamicSwitching,
-    modeToggleGPU
-} SwitcherMode;
-
 #define kDriverClassName "AppleGraphicsControl"
 
 @interface MuxMagic : NSObject

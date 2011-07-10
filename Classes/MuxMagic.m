@@ -286,22 +286,22 @@ static void dumpState(io_connect_t connect) {
 + (BOOL)switcherSetMode:(SwitcherMode)mode {
     if (switcherConnect == IO_OBJECT_NULL) return NO;
     switch (mode) {
-        case modeForceIntegrated:
-        case modeForceDiscrete:
+        case kModeForceIntegrated:
+        case kModeForceDiscrete:
             setDynamicSwitchingEnabled(switcherConnect, NO);
             // Disable Policy, otherwise gpu switches to Discrete after a bad app closes
             setFeatureInfo(switcherConnect, Policy, NO);
             sleep(1);
             
             BOOL integrated = [MuxMagic isUsingIntegrated];
-            if ((mode==modeForceIntegrated && !integrated) || (mode==modeForceDiscrete && integrated))
+            if ((mode==kModeForceIntegrated && !integrated) || (mode==kModeForceDiscrete && integrated))
                 forceSwitch(switcherConnect);
             break;
-        case modeDynamicSwitching:
+        case kModeDynamicSwitching:
             setFeatureInfo(switcherConnect, Policy, YES);
             setDynamicSwitchingEnabled(switcherConnect, YES);
             break;
-        case modeToggleGPU:
+        case kModeToggleGPU:
             forceSwitch(switcherConnect);
             break;
     }

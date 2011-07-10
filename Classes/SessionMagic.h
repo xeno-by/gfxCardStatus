@@ -31,6 +31,7 @@ typedef enum {
 @property (nonatomic) BOOL usingLegacy;
 @property (nonatomic, retain) NSString *integratedString;
 @property (nonatomic, retain) NSString *discreteString;
+@property (nonatomic, assign) SwitcherMode mode;
 
 + (SessionMagic *)sharedInstance;
 
