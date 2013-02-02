@@ -39,14 +39,14 @@
     // Attempt to open a connection to AppleGraphicsControl.
     if (![GSMux switcherOpen]) {
         GTMLoggerError(@"Can't open connection to AppleGraphicsControl. This probably isn't a gfxCardStatus-compatible machine.");
-        
+
         [GSNotifier showUnsupportedMachineMessage];
         [menuController quit:self];
     } else {
         GTMLoggerInfo(@"GPUs present: %@", [GSGPU getGPUNames]);
         GTMLoggerInfo(@"Integrated GPU name: %@", [GSGPU integratedGPUName]);
         GTMLoggerInfo(@"Discrete GPU name: %@", [GSGPU discreteGPUName]);
-        
+
         // Set the machine to dynamic switching to get it out of any kind of
         // weird state from the get go.
         if (![GSGPU isLegacyMachine])
@@ -78,6 +78,9 @@
     // If we're not on 10.8+, fall back to Growl for notifications.
     if (![GSNotifier notificationCenterIsAvailable])
         [GrowlApplicationBridge setGrowlDelegate:[GSNotifier sharedInstance]];
+
+    //This begins the named pipe listening.
+    _namedPipe = [[GSNamedPipe alloc] initWithController: menuController];
 
     // Hook up the check for updates on startup preference directly to the
     // automaticallyChecksForUpdates property on the SUUpdater.
